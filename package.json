@@ -1,6 +1,6 @@
 {
   "name": "@liuzw/dsh-web-ui-custom",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Custom PWA icons and a sidebar settings gear for the DeepSeek Harness Web app. 为 DSH Web 换上自制 PWA 图标，并在侧栏账户行加一个直开设置的齿轮。",
   "license": "MIT",
   "type": "module",
@@ -34,9 +34,6 @@
   "homepage": "https://github.com/liuzwZYW/dsh-web-ui-custom#readme",
   "bugs": {
     "url": "https://github.com/liuzwZYW/dsh-web-ui-custom/issues"
-  },
-  "peerDependencies": {
-    "@deepseek-ai/dsh": ">=0.2.0 <0.3.0-0"
   },
   "engines": {
     "node": ">=22"
