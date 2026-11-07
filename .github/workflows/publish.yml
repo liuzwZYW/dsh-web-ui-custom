@@ -1,12 +1,21 @@
 name: publish
 
-# 发布到 npm：推送 v* 标签时触发，也可以在 Actions 页面手动运行。
+# 用 npm Trusted Publisher（OIDC）发布，不需要任何长期 token。
 #
-# 需要在仓库 Settings → Secrets and variables → Actions 里添加 NPM_TOKEN：
-#   npmjs.com → Access Tokens → 新建 **Automation** token（或 Granular token，
-#   勾选 read/write packages + 允许绕过 2FA），然后把它存成仓库 secret。
+# 触发：推送 v* 标签，或在 Actions 页面手动 workflow_dispatch。
 #
-# 2FA：只有 Automation / 带 bypass-2FA 的 Granular token 才能在 CI 里免验证码发布。
+# 前置条件（一次性）：
+#   1. 包必须已经存在于 npm registry —— 首次发版要先手工 bootstrap 一次；
+#   2. 在 npmjs.com → 包 → Settings → Trusted publishing 添加：
+#        Provider: GitHub Actions
+#        Organization or user: liuzwZYW
+#        Repository: dsh-web-ui-custom
+#        Workflow filename: publish.yml
+#        Allowed actions: 勾选 npm publish
+#      配置后 2 天内必须完成一次成功发布，否则配置过期（可删除重建）。
+#   3. 工作流文件名必须与 npm 上填写的完全一致（本文件必须叫 publish.yml）。
+#
+# 说明：Trusted publishing 要求 npm CLI >= 11.5.1、Node >= 22.14，这里用 Node 24。
 
 on:
   push:
@@ -16,7 +25,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write # npm provenance 需要 OIDC
+  id-token: write # OIDC：npm 用它换取一次性发布凭据，并自动生成 provenance
 
 jobs:
   npm:
@@ -24,14 +33,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 12
-
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           registry-url: https://registry.npmjs.org
+
+      - name: npm version
+        run: npm --version
 
       - name: Smoke check
         run: |
@@ -49,13 +57,13 @@ jobs:
             exit 1
           fi
 
+      # OIDC 由 npm CLI 自动识别：id-token 存在时先尝试可信发布凭据，
+      # 失败才回退到 token。这里不配置任何 NODE_AUTH_TOKEN。
       - name: Publish
-        run: pnpm publish --access public --no-git-checks --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
 
       - name: Summary
         run: |
           name=$(node -p "require('./package.json').name")
           version=$(node -p "require('./package.json').version")
-          echo "Published \`${name}@${version}\` to npm." >> "$GITHUB_STEP_SUMMARY"
+          echo "Published \`${name}@${version}\` via trusted publishing." >> "$GITHUB_STEP_SUMMARY"
