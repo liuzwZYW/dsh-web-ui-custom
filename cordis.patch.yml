@@ -1,0 +1,4 @@
+# Bundle patch: mount the local Web UI kit (brand PWA icons + sidebar settings gear).
+- insert:
+    - id: web-ui-custom
+      name: '@liuzw/dsh-web-ui-custom'

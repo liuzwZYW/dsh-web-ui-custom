@@ -1,0 +1,5 @@
+node_modules/
+.snapshot-profile/
+.selftest.html
+*.log
+.DS_Store
