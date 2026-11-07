@@ -45,20 +45,30 @@ window.__ModuleLoader__.load({
       `[${GEAR_ATTR}]{flex:none;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;padding:0;border:0;border-radius:8px;background:transparent;color:inherit;cursor:pointer}`,
       `[${GEAR_ATTR}]:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.06))}`,
       `[${GEAR_ATTR}]:focus-visible{outline:2px solid var(--dsw-alias-brand-primary,#4f6ef7);outline-offset:2px}`,
-      /* Rail: stack the gear above the avatar, keeping the icon column centred. */
-      `[class*="_collapsed"] [${ROW_ATTR}]{flex-direction:column;gap:8px}`,
-      `[class*="_collapsed"] [${GEAR_ATTR}]{order:-1}`,
+      /* Rail: stack the gear above the avatar, keeping the icon column centred.
+         The sidebar marks its collapsed root with `_collapsed`, and the trigger
+         row itself carries `_railRow`; either is enough. */
+      `[class*="_collapsed"] [${ROW_ATTR}],[class*="_railRow"] [${ROW_ATTR}]{flex-direction:column;gap:8px}`,
+      `[class*="_collapsed"] [${GEAR_ATTR}],[class*="_railRow"] [${GEAR_ATTR}]{order:-1}`,
     ].join('')
 
     /**
      * The shipped account launcher row.
+     *
+     * The shell renders each slot as `<div data-slot="…" style="display:contents">`
+     * around the registrant's element, and `settings.launcher` sits inside the
+     * settings trigger row. The launcher registered by the account plugin is the
+     * element after those wrappers — that is the row the gear belongs beside,
+     * and the only node whose fiber chain carries `openSettings`.
      * @returns the row element, or `undefined` while the sidebar is not mounted.
      */
     function findRow() {
-      const area = document.querySelector('[class*="_settingsArea"]')
-      if (area === null) return undefined
-      const trigger = area.querySelector('[class*="_triggerRow"]')
-      const row = (trigger ?? area).firstElementChild
+      const slot = document.querySelector('[data-slot="settings.launcher"]')
+        ?? document.querySelector('[class*="_settingsArea"] [class*="_triggerRow"]')
+      if (slot === null || slot === undefined) return undefined
+      let row = slot.firstElementChild
+      /* Skip any further `data-slot` wrappers (presentation-only boxes). */
+      while (row instanceof HTMLElement && row.hasAttribute('data-slot')) row = row.firstElementChild
       return row instanceof HTMLElement ? row : undefined
     }
 
@@ -79,6 +89,10 @@ window.__ModuleLoader__.load({
       return undefined
     }
 
+    /** One-time console notes, so a silent no-op is visible in DevTools. */
+    let announced = false
+    let warnedMissingOpen = false
+
     /**
      * Mount the gear into the account row when both the row and its settings
      * callback are present.
@@ -86,7 +100,13 @@ window.__ModuleLoader__.load({
      */
     function mount(row) {
       if (row.querySelector(`:scope > [${GEAR_ATTR}]`) !== null) return
-      if (typeof resolveOpenSettings(row) !== 'function') return
+      if (typeof resolveOpenSettings(row) !== 'function') {
+        if (!warnedMissingOpen) {
+          warnedMissingOpen = true
+          console.warn('[dsh-web-ui-custom] launcher row found, but its openSettings prop is missing')
+        }
+        return
+      }
 
       row.setAttribute(ROW_ATTR, '')
       const gear = document.createElement('button')
@@ -102,6 +122,10 @@ window.__ModuleLoader__.load({
         if (typeof open === 'function') open()
       })
       row.append(gear)
+      if (!announced) {
+        announced = true
+        console.info('[dsh-web-ui-custom] settings gear mounted')
+      }
     }
 
     return {
